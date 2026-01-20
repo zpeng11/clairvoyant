@@ -237,13 +237,13 @@ clairvoyant/
     - Starts UDS server for connecting Stream Engine
     - Starts UDS server for connecting AI Inference
 2. **Stream Engine** starts:
-    - Connects to Gateway's MediaMTX to get and connect RTSP streams
-    - Connects to Gateway's UDS to get video layout
+    - Connects to Gateway's UDS to receive video layout and configs
+    - Connects to Gateway's MediaMTX to connect RTSP streams
     - Initializes DRM/KMS display planes
     - Starts UDS server for connecting AI Inference
 3. **AI Inference** starts:
-    - Connects to Stream Engine's UDS to get DMA-BUF sharing
-    - Connects to Gateway's UDS to send AI detections
+    - Connects to Stream Engine's UDS to receive DMA-BUF sharing
+    - Connects to Gateway's UDS to receive configs and send AI detections
     - Loads ONNX model and initializes Execution Provider
 4. **Display** starts:
     - Attempts to connect to Gateway for UI assets

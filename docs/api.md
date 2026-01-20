@@ -92,7 +92,7 @@ Defines the Unix Domain Socket mechanism for services to communicate
 
 **Covers:**
 - Using SOCK_SEQPACKET to avoid framing problem
-- 1:1 connection dual directional model (Gateway to AI Inference, Gateway to Stream Engine)
+- 1:1 connection dual directional model (Gateway to AI Inference, Gateway to Stream Engine, AI Inference to Stream Engine)
 
 **Detailed Specification**: See `UDS-protocol.md`
 

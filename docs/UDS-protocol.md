@@ -5,10 +5,10 @@ This file defines existing UDS protocols for local communication in the system.
 
 ## Usage Paths
 1. Stream Engine -> AI Inference. Supporting DMA-BUF transfer, use detection schema.
-2. AI Inference -> Stream Engine. Returning Simple status to notify DMA-BUF memory release ownership.
+2. AI Inference -> Stream Engine. Supporting DMA-BUF memory management, use detection schema.
 3. AI Inference -> Network Gateway. Use detection schema.
-4. Network Gateway -> Stream Engine. Sending configs and video plane dispaly layout combination, use stream config schema, may embed display layout schema.
-5. Network Gateway -> AI Inference. Sending AI Inference configs.
+4. Network Gateway -> Stream Engine. Sending streaming configs and video plane dispaly layout combination, use stream config schema, may embed display layout schema.
+5. Network Gateway -> AI Inference. Sending AI Inference configs, use inference config schema.
 
 ## Detection Schema
 
@@ -44,7 +44,7 @@ See `shared/schema/detection-schema.json`, send and receive differentiated by th
 }
 ```
 
-### Return Message Example (AI Inference → Stream Engine)
+### Return Message Example (AI Inference → Stream Engine/ Network Gateway)
 ```json
 {
   "direction": "return",
