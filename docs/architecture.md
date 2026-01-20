@@ -29,45 +29,36 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 │  │  REST API    │  │  WebSocket   │  │  RTSP Proxy  │           │
 │  └──────────────┘  └──────────────┘  └──────────────┘           │
 └─────────────────────────────────────────────────────────────────┘
-          │                    │                     │
-          ▼                    ▼                     ▼
-┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐     
-│   Remote UI     │   │    Display      │   │  Stream Engine  │               
-│   (Browser)     │   │   (Chromium)    │   │   (GStreamer)   │───────────────┐ 
-└─────────────────┘   └─────────────────┘   └─────────────────┘               |
-                                │                     │                       |
-                                │                     │ DMA-BUF (Zero-Copy)   |
-                                │                     ▼                       |
-                                │             ┌─────────────────┐             |
-                                │             │  AI Inference   │             |
-                                │             │   (ONNX Runtime)│             |
-                                │             └─────────────────┘             |
-                                │                     │                       |
-                                │                     │ UDS (JSON)            |
-                                │                     ▼                       |
-                                │             ┌─────────────────┐             |
-                                │             │  Stream Engine  │             |
-                                │             │  (Persistence)  │             |  
-                                │             └─────────────────┘             |
-                                │                  (SQLite)                   |
-                                │                                             |
-                                └───────UI Plane────────┐                     |
-                                                        |                     |
-                                                        ┼── Video Planes──────┘ 
+          │                    │              ▴              │
+          │                    │              │              │
+          ▼                    ▼              │              ▼
+┌─────────────────┐   ┌─────────────────┐     │     ┌─────────────────┐     
+│   Remote UI     │   │    Display      │     │     │  Stream Engine  │               
+│   (Browser)     │   │ (Local Chromium)│     │     │   (GStreamer)   │───────────────┐ 
+└─────────────────┘   └─────────────────┘     │     └─────────────────┘               │
+                                │             │               │                       │
+                                │             │               │ DMA-BUF (Zero-Copy)   │
+                                │             │               ▼                       │
+                                │             │      ┌─────────────────┐              │
+                                │             └──────│  AI Inference   │              │
+                                │                    │ (ONNX Runtime)  │              │
+                                │                    └─────────────────┘              │
+                                │                                                     │
+                                └───────UI Plane────────┐                             │
+                                                        │                             │
+                                                        │── Video Planes──────────────┘ 
                                                         ▼
                                                     ┌─────────────────┐
                                                     │   DRM/KMS       │
                                                     │   Display       │
-                                                    │   Controller    │
                                                     └─────────────────┘
 ```
 
 ### 2.2 Data Flow
-1. **RTSP Ingestion**: External camera streams → Gateway (MediaMTX) → Stream Engine
+1. **RTSP Ingestion**: External camera streams → Gateway (MediaMTX) → Stream Engine/Remote UI
 2. **Video Decoding**: Stream Engine → Hardware Decoder (V4L2/VA-API) → DRM/KMS Video Planes
-3. **AI Processing**: Decoded frames (DMA-BUF) → AI Inference → Detection Metadata (UDS)
-4. **Metadata Distribution**: AI Inference(UDS) → Gateway (WebSocket) → Display/Remote UI
-5. **Persistence**: AI Inference(UDS) → Stream Engine → SQLite Database
+3. **AI Processing**: Decoded frames (DMA-BUF) → AI Inference → Gateway 
+4. **Detections Distribution**: Gateway (WebSocket) → Display/Remote UI
 6. **Display Composition**: DRM/KMS Controller merges Video Planes (Stream Engine) + UI Plane (Display)
 
 ---
@@ -78,29 +69,29 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 **Role**: Data & Display Hub
 
 **Data Flow**:
-- Input: RTSP streams from Gateway's MediaMTX
-- Output: DRM/KMS video planes, DMA-BUF to AI, SQLite persistence
+- Input: RTSP streams from Gateway's MediaMTX, UDS message of video DRM layout and config
+- Output: DRM/KMS video planes, DMA-BUF to AI, Recording persistance
 
 **Technology Stack**:
 - Language: Rust
 - Framework: GStreamer with V4L2 Request API (ARM) / VA-API (x86)
 - Hardware: DRM/KMS Atomic API
-- IPC: UDS (Inference results), DMA-BUF (video frames)
+- IPC: UDS (Inference results, video layouts, configs), DMA-BUF (video frames)
 
 **Key Interfaces**:
 - `services/stream-engine/src/rtsp/`: RTSP stream consumption logic
 - `services/stream-engine/src/decoder/`: Hardware decoder integration
 - `services/stream-engine/src/drm/`: DRM/KMS plane management
 - `services/stream-engine/src/ipc/dma_buf.rs`: DMA-BUF sharing with AI Inference
-- `services/stream-engine/src/ipc/uds_server.rs`: Subscribe AI metadata for persistence
+- `services/stream-engine/src/ipc/uds_server.rs`: Getting video DRM layout
 - `services/stream-engine/src/storage/sqlite.rs`: SQLite database operations
 
 ### 3.2 AI Inference
-**Role**: Metadata Generator
+**Role**: Detections Generator
 
 **Data Flow**:
-- Input: DMA-BUF video frames from Stream Engine
-- Output: Detection metadata via UDS
+- Input: DMA-BUF video frames from Stream Engine, config from Gateway
+- Output: Detections distribute to Gateway 
 
 **Technology Stack**:
 - Language: Rust
@@ -115,14 +106,14 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 - `services/ai-inference/src/ipc/dma_buf.rs`: Receive DMA-BUF frames
 - `services/ai-inference/src/inference/onnx_runtime.rs`: ONNX Runtime wrapper
 - `services/ai-inference/src/inference/ep/`: Execution Provider adapters
-- `services/ai-inference/src/ipc/uds_publisher.rs`: Publish JSON metadata
+- `services/ai-inference/src/ipc/uds_publisher.rs`: Publish JSON detections
 - `services/ai-inference/configs/ai-inference.yaml`: Model path and EP configuration
 
 ### 3.3 Display
 **Role**: Transparent UI Layer
 
 **Data Flow**:
-- Input: UI assets from Gateway, AI metadata via WebSocket (optional)
+- Input: UI assets and backend from Gateway
 - Output: Chromium rendering on DRM/KMS UI Plane
 
 **Technology Stack**:
@@ -144,8 +135,8 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 **Role**: Remote & API Bridge
 
 **Data Flow**:
-- Input: External RTSP sources, REST API requests, WebSocket connections, UDS publish.
-- Output: Proxied RTSP streams, REST API responses, WebSocket metadata, UI assets
+- Input: External RTSP sources, REST API requests, WebSocket connections, UDS connections.
+- Output: Proxied RTSP streams, REST API responses, WebSocket detections, UI assets, UDS video layout and configs.
 
 **Technology Stack**:
 - Language: Node.js TypeScript
@@ -156,50 +147,11 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 
 **Key Interfaces**:
 - `services/network-gateway/src/api/`: REST API endpoints (streams, recordings, config)
+- `services/network-gateway/src/uds/`: UDS communications
 - `services/network-gateway/src/mediamtx/client.ts`: MediaMTX API client
-- `services/network-gateway/src/websocket/server.ts`: WebSocket server for AI metadata
+- `services/network-gateway/src/websocket/server.ts`: WebSocket server for AI detections
 - `services/network-gateway/src/static/`: Unified frontend assets (SPA)
 - `services/network-gateway/configs/gateway.yaml`: API configuration, MediaMTX settings
-
----
-
-## 4. IPC Communication Mechanisms
-
-### 4.1 DMA-BUF Zero-Copy Sharing
-**Purpose**: Share decoded video frames between Stream Engine and AI Inference without CPU memory copying
-
-**Mechanism**:
-- GStreamer decoder produces DMA-BUF file descriptors via V4L2/VA-API plugins.
-- DMA-BUF handles are shared through Unix Domain Socket SCM_RIGHTS and SOCK_SEQPACKET
-- AI Inference imports DMA-BUF from UDS and use CPU/GPU/NPU for inference processing
-- UDS message back to notify GStreamer to reuse DMA-BUF
-
-**Reference Files**:
-- Protocol: `dma-buf-protocol.md`
-- Data Structure: `shared/schema/detection-schema.json`
-
-### 4.2 UDS Detection Publisher
-**Purpose**: Publish AI inference metadata to Gateway and Stream Engine
-
-**Transport**: Unix Domain Socket (SOCK_SEQPACKET), Inference results JSON.
-
-**Connections**:
-1. **AI Inference → Gateway**: Real-time detection results for UI overlay (WebSocket relay)
-2. **AI Inference → Stream Engine**: Detection results for SQLite persistence and notify GStreamer memory reuse.
-
-**Message Schema**: Return schema (defined in `shared/schema/detection-schema.json`)
-
-**Reference**: `UDS-protocol.md`
-
-### 4.3 WebSocket Real-Time Push
-**Purpose**: Deliver AI metadata from Gateway to Display and remote browsers
-
-**Connection Flow**:
-- AI Inference publishes to Gateway via UDS
-- Gateway forwards metadata via WebSocket to connected clients
-- Display establishes WebSocket connection to Gateway on startup
-
-**Message Format**: Same as DMA-BUF return message schema (JSON)
 
 ---
 
@@ -237,18 +189,6 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 - Target platforms: NVIDIA Jetson, discrete GPUs
 - Configuration: `services/ai-inference/src/inference/ep/tensorrt.rs`
 
-### 5.3 Display Controller Integration
-**DRM/KMS Atomic API**
-- Used by Stream Engine for direct video plane output
-- Hardware compositing by SoC Display Controller (VOP/DC)
-- Multi-plane support:
-  - Overlay Planes: Video frames from Stream Engine
-  - Primary/Top Plane: UI from Chromium (Display service)
-
-**Plane Configuration**:
-- Defined in `services/stream-engine/configs/stream-engine.yaml`
-- Includes coordinates, Z-order, scaling factors
-
 ---
 
 ## 6. Directory Structure
@@ -267,10 +207,10 @@ clairvoyant/
 ### 6.2 Service Responsibilities
 | Service | Primary Responsibility | Key Directories |
 |:---|:---|:---|
-| **Stream Engine** | Video decoding, DRM/KMS output, SQLite persistence | `services/stream-engine/src/rtsp/`, `decoder/`, `drm/`, `storage/` |
-| **AI Inference** | Object detection, metadata publishing | `services/ai-inference/src/inference/`, `models/` |
-| **Display** | UI rendering on Chromium | `services/display/src/`, `static/` |
-| **Network Gateway** | RTSP proxy, REST API, WebSocket, frontend hosting | `services/network-gateway/src/api/`, `mediamtx/`, `websocket/`, `static/` |
+| **Stream Engine** | Video decoding, DRM/KMS output | `services/stream-engine/src/rtsp/`, `decoder/`, `drm/`, `storage/` |
+| **AI Inference** | Object detection | `services/ai-inference/src/inference/`, `models/` |
+| **Display** | UI rendering on Local Chromium | `services/display/src/`, `static/` |
+| **Network Gateway** | RTSP proxy, REST API, WebSocket, full stack hosting | `services/network-gateway/src/api/`, `mediamtx/`, `websocket/`, `static/` |
 
 ### 6.3 Shared Resources
 - `docs/`: IPC mechanism definitions and protocols (DMA-BUF, UDS, REST API)
@@ -294,29 +234,24 @@ clairvoyant/
     - Initializes MediaMTX service
     - Establishes connections to configured RTSP sources
     - Starts REST API and WebSocket server
-    - Starts UDS server for AI metadata
+    - Starts UDS server for connecting Stream Engine
+    - Starts UDS server for connecting AI Inference
 2. **Stream Engine** starts:
-    - Connects to Gateway's MediaMTX for RTSP streams
+    - Connects to Gateway's MediaMTX to get and connect RTSP streams
+    - Connects to Gateway's UDS to get video layout
     - Initializes DRM/KMS display planes
-    - Starts UDS server for AI metadata persistence
+    - Starts UDS server for connecting AI Inference
 3. **AI Inference** starts:
-    - Connects to Stream Engine's DMA-BUF sharing
+    - Connects to Stream Engine's UDS to get DMA-BUF sharing
+    - Connects to Gateway's UDS to send AI detections
     - Loads ONNX model and initializes Execution Provider
-    - Starts UDS publishers to Gateway and Stream Engine
 4. **Display** starts:
     - Attempts to connect to Gateway for UI assets
-    - Falls back to local static assets if Gateway unreachable
     - Launches Chromium in Kiosk mode (Ozone/GBM)
 
-### 7.2 Normal Operation Flow
-1. **Video Streaming**: RTSP sources → MediaMTX → Stream Engine → Hardware Decoder → DRM/KMS Video Planes
-2. **AI Inference**: DMA-BUF frames → AI Inference → ONNX Runtime → Detection Results → UDS Publisher
-3. **Metadata Distribution**: UDS → Gateway → WebSocket → Display/Remote UI
-4. **Persistence**: UDS → Stream Engine → SQLite Database
-5. **Display Composition**: SoC Display Controller composites Video Planes + UI Plane
-
-### 7.3 Exception Handling
-- **Gateway Unavailable**: Display serves local fallback UI from `services/display/static/`
-- **RTSP Source Lost**: Stream Engine reports to Gateway via REST API; Gateway attempts reconnection
-- **AI Inference Failure**: Stream Engine continues video display; Gateway notifies UI of detection unavailability
-- **DRM/KMS Failure**: System logs error; Display service continues with UI overlay only
+### 7.2 Exception Handling
+- **Gateway Unavailable**: Display serves local fallback UI from `services/display/static/`, remote unreachable 
+- **Stream Engine Unavailable/ DRM Failure**: Hardware decoding unavailable, Display Chromium fall back from hardware rendering to Remote UI
+- **AI Inference Unavailable/Failure**: Gateway notifies UI of detection unavailability
+- **Display Chromium Unavailable**: Gateway remote UI keep working
+- **RTSP Source Lost**: Gateway attempts reconnection and keep proxying a signal lost word display 
