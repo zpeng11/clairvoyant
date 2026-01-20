@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Video Stream Layout",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^[a-zA-Z0-9_-]+$": {
+      "type": "object",
+      "description": "Video stream configuration",
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Normalized x position (0-1)"
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Normalized y position (0-1)"
+        },
+        "width": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Normalized width (0-1)"
+        },
+        "height": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Normalized height (0-1)"
+        },
+        "crop": {
+          "type": "object",
+          "description": "Crop region from source (optional)",
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Crop x position (0-1)"
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Crop y position (0-1)"
+            },
+            "width": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Crop width (0-1)"
+            },
+            "height": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Crop height (0-1)"
+            }
+          },
+          "required": ["x", "y", "width", "height"]
+        },
+        "rotation": {
+          "type": "number",
+          "description": "Rotation in degrees",
+          "default": 0
+        },
+        "visibility": {
+          "type": "boolean",
+          "description": "Stream visibility",
+          "default": true
+        },
+        "color": {
+          "type": "boolean",
+          "description": "Enable color",
+          "default": true
+        }
+      }
+    }
+  }
+}

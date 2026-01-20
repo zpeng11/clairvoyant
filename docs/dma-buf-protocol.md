@@ -9,6 +9,5 @@ This protocol defines how Stream Engine shares decoded video frames with AI Infe
 - **Message Format**: JSON + file descriptor
 
 ## Error Handling
-- Invalid message format: Return message with `status: "error"`
-- FD import failure: Return message with `status: "error"`
+- Invalid message format, FD mmap failure: Return UDS message with `status: "error"`
 - Timeout: Stream Engine may forcibly reclaim DMA-BUF after timeout threshold

@@ -82,38 +82,17 @@ Defines the zero-copy frame sharing mechanism between Stream Engine and AI Infer
 
 **Covers:**
 - DMA-BUF file descriptor sharing via Unix Domain Socket SOCK_SEQPACKET
-- Unified message schema for both send and return directions
-- Return message includes detection results (model_name, timestamp, detections array)
+- Map FD to memory for next step
 
 **Detailed Specification**: See `dma-buf-protocol.md`
-**Data Structure**: See `shared/schema/detection-schema.json`
+**Data Structure**: See `shared/schema/detection-schema.json`'s sending schema
 
-### 4.2 UDS Detection Publisher
-Defines the Unix Domain Socket mechanism for AI Inference to publish detection results to Gateway and Stream Engine.
+### 4.2 UDS messages
+Defines the Unix Domain Socket mechanism for services to communicate
 
 **Covers:**
-- UDS transport (SOCK_SEQPACKET)
-- 1:1 connection model (AI Inference to Gateway, AI Inference to Stream Engine)
-- Reuses DMA-BUF return message schema
+- Using SOCK_SEQPACKET to avoid framing problem
+- 1:1 connection dual directional model (Gateway to AI Inference, Gateway to Stream Engine)
 
 **Detailed Specification**: See `UDS-protocol.md`
 
----
-
-## 5. Implementation Notes
-
-### 5.1 Gateway Service Implementation
-Network Gateway REST API implementation is located at:
-- `services/network-gateway/src/api/streams.ts` - Streams endpoints
-- `services/network-gateway/src/api/recordings.ts` - Recordings endpoints
-- `services/network-gateway/src/api/config.ts` - Configuration endpoints
-- `services/network-gateway/src/websocket/server.ts` - WebSocket server
-
-### 5.2 Client Libraries
-- REST API clients can use standard HTTP libraries (e.g., axios, fetch)
-- WebSocket clients should support JSON message parsing
-- Bearer token authentication must be included in all requests
-
-### 5.3 MediaMTX Integration
-Gateway uses MediaMTX as the RTSP proxy. MediaMTX API is accessed via the client wrapper at:
-- `services/network-gateway/src/mediamtx/client.ts`
