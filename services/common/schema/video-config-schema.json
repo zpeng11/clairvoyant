@@ -1,14 +1,18 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Video Stream Layout",
+  "title": "Video Stream Configuration",
   "type": "object",
   "additionalProperties": false,
   "patternProperties": {
     "^[a-zA-Z0-9_-]+$": {
       "type": "object",
       "description": "Video stream configuration",
-      "required": ["x", "y", "width", "height"],
+      "required": ["stream_url", "x", "y", "width", "height"],
       "properties": {
+        "stream_url": {
+          "type": "string",
+          "description": "Video stream URL"
+        },
         "x": {
           "type": "number",
           "minimum": 0,
@@ -60,6 +64,37 @@
               "minimum": 0,
               "maximum": 1,
               "description": "Crop height (0-1)"
+            }
+          },
+          "required": ["x", "y", "width", "height"]
+        },
+        "region_of_interest": {
+          "type": "object",
+          "description": "Region of interest (optional)",
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "ROI x position (0-1)"
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "ROI y position (0-1)"
+            },
+            "width": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "ROI width (0-1)"
+            },
+            "height": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "ROI height (0-1)"
             }
           },
           "required": ["x", "y", "width", "height"]
