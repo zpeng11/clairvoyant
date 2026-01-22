@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AI Inference Configuration Schema",
+  "description": "Configuration schema for AI Inference Service settings sent from Gateway",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "model_config": {
+      "type": "object",
+      "description": "Global model configuration",
+      "properties": {
+        "model_name": {
+          "type": "string",
+          "description": "Name of the ONNX model file to load"
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["cpu", "rknn", "acl", "openvino", "tensorrt"],
+          "description": "Execution Provider for hardware acceleration"
+        }
+      },
+      "required": ["model_name"]
+    },
+    "inference_params": {
+      "type": "object",
+      "description": "Runtime inference parameters",
+      "properties": {
+        "confidence_threshold": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Confidence threshold for filtering detections"
+        },
+        "nms_threshold": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "IoU threshold for Non-Maximum Suppression"
+        }
+      }
+    }
+  },
+  "required": ["model_config"]
+}

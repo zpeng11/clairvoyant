@@ -71,3 +71,69 @@ See `shared/schema/detection-schema.json`, send and receive differentiated by th
   ]
 }
 ```
+
+## Stream Config Schema
+
+### Message Structure
+See `services/common/schema/video-config-schema.json`. This is a map where each key is a `stream_id` and the value is the stream's configuration.
+
+#### Fields (per stream)
+| Field | Type | Description | Required |
+|-------|------|-------------|----------|
+| `stream_url` | string | RTSP source URL | yes |
+| `x` | number | Normalized X position (0-1) | yes |
+| `y` | number | Normalized Y position (0-1) | yes |
+| `width` | number | Normalized width (0-1) | yes |
+| `height` | number | Normalized height (0-1) | yes |
+| `rotation` | number | Rotation in degrees | no (default: 0) |
+| `visibility` | boolean | Toggle display visibility | no (default: true) |
+| `color` | boolean | Enable color | no (default: true) |
+| `crop` | object | Source crop region {x, y, width, height} | no |
+| `region_of_interest`| object | AI ROI region {x, y, width, height} | no |
+
+### Example (Network Gateway → Stream Engine)
+```json
+{
+  "camera-001": {
+    "stream_url": "rtsp://192.168.1.100:554/live",
+    "x": 0.0,
+    "y": 0.0,
+    "width": 0.5,
+    "height": 0.5,
+    "visibility": true,
+    "color": true
+  }
+}
+```
+
+## Inference Config Schema
+
+### Message Structure
+See `services/common/schema/inference-config-schema.json`. This hierarchical object defines global model and runtime parameters.
+
+#### model_config Fields
+| Field | Type | Description | Required |
+|-------|------|-------------|----------|
+| `model_name` | string | Name of the ONNX model file | yes |
+| `provider` | string | Execution Provider (`cpu`, `rknn`, `acl`, `openvino`, `tensorrt`) | no |
+
+#### inference_params Fields
+| Field | Type | Description | Required |
+|-------|------|-------------|----------|
+| `confidence_threshold` | number | Min detection confidence (0-1) | no |
+| `nms_threshold` | number | IoU threshold for NMS (0-1) | no |
+
+### Example (Network Gateway → AI Inference)
+```json
+{
+  "model_config": {
+    "model_name": "yolov8n.onnx",
+    "provider": "rknn"
+  },
+  "inference_params": {
+    "confidence_threshold": 0.5,
+    "nms_threshold": 0.45
+  }
+}
+```
+
