@@ -51,9 +51,9 @@ Manages global system settings.
 - `GET /api/config` - Retrieve system configuration
 - `PUT /api/config` - Update system configuration
 
-**Detailed Specification**: See `shared/protocols/rest-api/config.yaml`
+**Detailed Specification**: TODO
 
-**Implementation**: `services/network-gateway/src/api/config.ts`
+**Implementation**: TODO
 
 ---
 

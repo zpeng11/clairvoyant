@@ -59,7 +59,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 2. **Video Decoding**: Stream Engine → Hardware Decoder (V4L2/VA-API) → DRM/KMS Video Planes
 3. **AI Processing**: Decoded frames (DMA-BUF) → AI Inference → Gateway 
 4. **Detections Distribution**: Gateway (WebSocket) → Display/Remote UI
-6. **Display Composition**: DRM/KMS Controller merges Video Planes (Stream Engine) + UI Plane (Display)
+5. **Display Composition**: DRM/KMS Controller merges Video Planes (Stream Engine) + UI Plane (Display)
 
 ---
 
@@ -155,9 +155,9 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 
 ---
 
-## 5. Hardware Abstraction Layer
+## 4. Hardware Abstraction Layer
 
-### 5.1 Decoder Adapters
+### 4.1 Decoder Adapters
 **V4L2 Request API** (ARM platforms - Rockchip, Amlogic, NXP)
 - Used by Stream Engine for hardware-accelerated H.264/H.265 decoding
 - Outputs DMA-BUF frames directly to DRM/KMS
@@ -168,7 +168,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 - Outputs DMA-BUF or VA surface to DRM/KMS
 - Supported platforms: Intel NUC, embedded x86 SoCs
 
-### 5.2 Inference Accelerator Adapters
+### 4.2 Inference Accelerator Adapters
 **RKNPU** (Rockchip NPU)
 - Execution Provider: `rknn-rt` or RKNPU ONNX EP
 - Target platforms: RK3588, RK3568, RK3399 Pro
@@ -191,9 +191,9 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 
 ---
 
-## 6. Directory Structure
+## 5. Directory Structure
 
-### 6.1 Project Root
+### 5.1 Project Root
 ```
 clairvoyant/
 ├── services/              # Microservices (4 containers)
@@ -204,7 +204,7 @@ clairvoyant/
 └── README.md              # Project overview
 ```
 
-### 6.2 Service Responsibilities
+### 5.2 Service Responsibilities
 | Service | Primary Responsibility | Key Directories |
 |:---|:---|:---|
 | **Stream Engine** | Video decoding, DRM/KMS output | `services/stream-engine/src/rtsp/`, `decoder/`, `drm/`, `storage/` |
@@ -212,24 +212,24 @@ clairvoyant/
 | **Display** | UI rendering on Local Chromium | `services/display/src/`, `static/` |
 | **Network Gateway** | RTSP proxy, REST API, WebSocket, full stack hosting | `services/network-gateway/src/api/`, `mediamtx/`, `websocket/`, `static/` |
 
-### 6.3 Shared Resources
+### 5.3 Shared Resources
 - `docs/`: IPC mechanism definitions and protocols (DMA-BUF, UDS, REST API)
 - `shared/schema/`: JSON schemas for IPC messages
 - `shared/configs/`: Common configuration templates (logging, environment)
 
-### 6.4 Data Volumes
+### 5.4 Data Volumes
 - `data/recordings/`: Video recording files
 - `data/database/`: SQLite database (WAL logs)
 
-### 6.5 Documentation & Scripts
+### 5.5 Documentation & Scripts
 - `docs/`: Architecture, deployment, API documentation
 - `scripts/`: Build, deployment, Docker Compose orchestration
 
 ---
 
-## 7. Runtime Flow
+## 6. Runtime Flow
 
-### 7.1 Startup Sequence
+### 6.1 Startup Sequence
 1. **Network Gateway** starts first:
     - Initializes MediaMTX service
     - Establishes connections to configured RTSP sources
@@ -249,7 +249,7 @@ clairvoyant/
     - Attempts to connect to Gateway for UI assets
     - Launches Chromium in Kiosk mode (Ozone/GBM)
 
-### 7.2 Exception Handling
+### 6.2 Exception Handling
 - **Gateway Unavailable**: Display serves local fallback UI from `services/display/static/`, remote unreachable 
 - **Stream Engine Unavailable/ DRM Failure**: Hardware decoding unavailable, Display Chromium fall back from hardware rendering to Remote UI
 - **AI Inference Unavailable/Failure**: Gateway notifies UI of detection unavailability
