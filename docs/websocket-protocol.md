@@ -1,7 +1,7 @@
 # WebSocket AI Detection Protocol
 
 ## Overview
-This protocol defines how Network Gateway pushes real-time AI detection metadata to frontend clients (Display service, remote browsers) via WebSocket.
+This protocol defines how Network Gateway pushes real-time AI detection metadata to frontend clients (UI service, remote browsers) via WebSocket.
 
 ## Communication Model
 - **Direction**: Network Gateway → Clients (unidirectional push)

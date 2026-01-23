@@ -60,7 +60,7 @@ Manages global system settings.
 ## 3. WebSocket API
 
 ### 3.1 Connection Endpoint
-WebSocket endpoint for real-time AI metadata streaming from the Gateway to connected clients (Display service, remote browsers).
+WebSocket endpoint for real-time AI metadata streaming from the Gateway to connected clients (UI service, remote browsers).
 
 **Endpoint**: `ws://gateway-host:port/ws`
 
@@ -70,7 +70,7 @@ Real-time AI detection metadata including bounding boxes, classes, confidence sc
 **Detailed Specification**: See `shared/protocols/websocket/schema.txt`
 
 ### 3.3 Client Integration
-- Display service establishes WebSocket connection on startup to receive AI metadata for UI rendering
+- UI service establishes WebSocket connection on startup to receive AI metadata for UI rendering
 - Remote browsers connect to the same endpoint for live detection visualization in the web interface
 - Detections are synchronized with the video stream via timestamps
 
@@ -105,7 +105,7 @@ Defines the zero-copy buffer sharing mechanism between Wayland clients and the C
 
 **Covers:**
 - Stream Engine (client) submits video surfaces via `linux-dmabuf-v1`
-- Display (client) submits UI surfaces via `linux-dmabuf-v1`
+- UI (client) submits UI surfaces via `linux-dmabuf-v1`
 - Compositor (server) receives and composites surfaces for DRM/KMS output
 
 **Detailed Specification**: See `wayland-dmabuf-protocol.md`

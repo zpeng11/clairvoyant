@@ -5,7 +5,7 @@ Defines zero-copy buffer sharing between Wayland clients and the Compositor via 
 
 ## 2. Architecture
 - **Server**: Compositor (Smithay) manages DRM/KMS output
-- **Clients**: Stream Engine (video), Display (UI)
+- **Clients**: Stream Engine (video), UI
 - **Protocol**: `zwp_linux_dmabuf_v1` for buffer import
 
 ## 3. Client Roles
@@ -15,7 +15,7 @@ Defines zero-copy buffer sharing between Wayland clients and the Compositor via 
 - Uses `linux-dmabuf-v1` to create `wl_buffer` from DMA-BUF
 - Lower z-order (background layer)
 
-### Display (UI Client)
+### UI (Client)
 - Chromium with Ozone/Wayland backend
 - Submits UI overlay as transparent Wayland surface
 - Higher z-order (foreground layer)

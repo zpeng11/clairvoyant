@@ -33,7 +33,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
           │                    │              │              │
           ▼                    ▼              │              ▼
 ┌─────────────────┐   ┌─────────────────┐     │     ┌─────────────────┐     
-│   Remote UI     │   │    Display      │     │     │  Stream Engine  │               
+│   Remote UI     │   │       UI        │     │     │  Stream Engine  │     
 │   (Browser)     │   │   (Chromium)    │     │     │   (GStreamer)   │
 └─────────────────┘   └─────────────────┘     │     └─────────────────┘
                               │               │          │         │
@@ -63,8 +63,8 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 1. **RTSP Ingestion**: External camera streams → Gateway (MediaMTX) → Stream Engine/Remote UI
 2. **Video Decoding**: Stream Engine → Hardware Decoder (V4L2/VA-API) → Wayland surface (linux-dmabuf) → Compositor
 3. **AI Processing**: Decoded frames → PipeWire (pipewiresink) → AI Inference (pipewire-rs) → Gateway
-4. **Detections Distribution**: Gateway (WebSocket) → Display/Remote UI
-5. **UI Rendering**: Display (Chromium Ozone/Wayland) → Wayland surface (linux-dmabuf) → Compositor
+4. **Detections Distribution**: Gateway (WebSocket) → UI/Remote UI
+5. **UI Rendering**: UI (Chromium Ozone/Wayland) → Wayland surface (linux-dmabuf) → Compositor
 6. **Display Composition**: Compositor (Smithay) merges video surfaces + UI surfaces → DRM/KMS output
 
 ---
@@ -118,7 +118,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 - `services/ai-inference/src/ipc/uds_publisher.rs`: Publish JSON detections
 - `services/ai-inference/configs/ai-inference.yaml`: Model path and EP configuration
 
-### 3.3 Display
+### 3.3 UI
 **Role**: Transparent UI Layer
 
 **Data Flow**:
@@ -132,13 +132,13 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 - Communication: WebSocket (from Gateway), HTTP/HTTPS (UI assets)
 
 **Key Interfaces**:
-- `services/display/src/main.sh`: Chromium startup script
-- `services/display/src/browser/chromium.conf`: Chromium parameters (Ozone/Wayland, transparent background)
-- `services/display/static/`: Local fallback assets when Gateway is unavailable
-- `services/display/configs/display.yaml`: Gateway URL, Compositor socket, display parameters
+- `services/ui/src/main.sh`: Chromium startup script
+- `services/ui/src/browser/chromium.conf`: Chromium parameters (Ozone/Wayland, transparent background)
+- `services/ui/static/`: Local fallback assets when Gateway is unavailable
+- `services/ui/configs/ui.yaml`: Gateway URL, Compositor socket, display parameters
 
 **Fallback Mechanism**:
-- If Gateway is unreachable, Display serves local static HTML from `services/display/static/`
+- If Gateway is unreachable, UI serves local static HTML from `services/ui/static/`
 
 ### 3.4 Network Gateway
 **Role**: Remote & API Bridge
@@ -166,7 +166,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 **Role**: Wayland Display Compositor
 
 **Data Flow**:
-- Input: Wayland surfaces with linux-dmabuf from Stream Engine (video) and Display (UI)
+- Input: Wayland surfaces with linux-dmabuf from Stream Engine (video) and UI
 - Output: Composed frames to DRM/KMS display
 
 **Technology Stack**:
@@ -184,7 +184,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 
 **Layer Management**:
 - Video surfaces from Stream Engine are placed on lower z-order (background)
-- UI surfaces from Display are placed on higher z-order (foreground/overlay)
+- UI surfaces from UI service are placed on higher z-order (foreground/overlay)
 
 ---
 
@@ -241,7 +241,7 @@ clairvoyant/
 |:---|:---|:---|
 | **Stream Engine** | Video decoding, Wayland client, PipeWire producer | `services/stream-engine/src/rtsp/`, `decoder/`, `wayland/`, `storage/` |
 | **AI Inference** | Object detection via PipeWire frames | `services/ai-inference/src/inference/`, `ipc/`, `models/` |
-| **Display** | UI rendering via Wayland | `services/display/src/`, `static/` |
+| **UI** | UI rendering via Wayland | `services/ui/src/`, `static/` |
 | **Network Gateway** | RTSP proxy, REST API, WebSocket, full stack hosting | `services/network-gateway/src/api/`, `mediamtx/`, `websocket/`, `static/` |
 | **Compositor** | Wayland compositor, DRM/KMS output | `services/compositor/src/compositor/`, `dmabuf/`, `drm/` |
 
@@ -271,8 +271,8 @@ clairvoyant/
     - Starts UDS server for connecting AI Inference
 2. **Compositor** starts second:
     - Initializes DRM/KMS backend
-    - Creates Wayland socket for clients
-    - Waits for client connections (Stream Engine, Display)
+- Creates Wayland socket for clients
+- Waits for client connections (Stream Engine, UI)
 3. **Stream Engine** starts:
     - Connects to Gateway's UDS to receive video layout and configs
     - Connects to Gateway's MediaMTX to consume RTSP streams
@@ -282,15 +282,15 @@ clairvoyant/
     - Connects to Stream Engine's PipeWire to receive video frames
     - Connects to Gateway's UDS to receive configs and send AI detections
     - Loads ONNX model and initializes Execution Provider
-5. **Display** starts:
+5. **UI** starts:
     - Attempts to connect to Gateway for UI assets
     - Connects to Compositor as Wayland client
     - Launches Chromium in Kiosk mode (Ozone/Wayland)
 
 ### 6.2 Exception Handling
-- **Gateway Unavailable**: Display serves local fallback UI from `services/display/static/`, remote unreachable 
-- **Compositor Unavailable**: Stream Engine and Display cannot render locally, fall back to Remote UI only
+- **Gateway Unavailable**: UI serves local fallback UI from `services/ui/static/`, remote unreachable 
+- **Compositor Unavailable**: Stream Engine and UI cannot render locally, fall back to Remote UI only
 - **Stream Engine Unavailable/PipeWire Failure**: AI Inference cannot receive frames, Gateway notifies UI of detection unavailability
 - **AI Inference Unavailable/Failure**: Gateway notifies UI of detection unavailability
-- **Display Chromium Unavailable**: Gateway remote UI keep working
+- **UI Chromium Unavailable**: Gateway remote UI keep working
 - **RTSP Source Lost**: Gateway attempts reconnection and keep proxying a signal lost word display 

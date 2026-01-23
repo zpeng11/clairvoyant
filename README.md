@@ -41,7 +41,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
           │                    │              │              │
           ▼                    ▼              │              ▼
 ┌─────────────────┐   ┌─────────────────┐     │     ┌─────────────────┐     
-│   Remote UI     │   │    Display      │     │     │  Stream Engine  │               
+│   Remote UI     │   │       UI        │     │     │  Stream Engine  │     
 │   (Browser)     │   │   (Chromium)    │     │     │   (GStreamer)   │
 └─────────────────┘   └─────────────────┘     │     └─────────────────┘
                               │               │          │         │
@@ -77,7 +77,7 @@ For detailed architecture documentation, see [docs/architecture.md](docs/archite
 |:--------|:-----|:-----------|:----|
 | **Stream Engine** | Video Processing Hub | Rust / GStreamer | PipeWire, Wayland, UDS |
 | **AI Inference** | Detections Generator | Rust / ONNX Runtime | PipeWire input, UDS output |
-| **Display** | Transparent UI Layer | Chromium (Ozone/Wayland) | WebSocket, HTTP, Wayland |
+| **UI** | Transparent UI Layer | Chromium (Ozone/Wayland) | WebSocket, HTTP, Wayland |
 | **Network Gateway** | Remote & API Bridge | Node.js TS / MediaMTX | REST, WebSocket, UDS |
 | **Compositor** | Wayland Display Server | Rust / Smithay | Wayland, DRM/KMS |
 
@@ -119,7 +119,7 @@ Configuration files are located in each service's `configs/` directory:
 - `services/network-gateway/configs/gateway.yaml` - API and MediaMTX settings
 - `services/stream-engine/configs/stream-engine.yaml` - Decoder and PipeWire settings
 - `services/ai-inference/configs/ai-inference.yaml` - Model path and EP configuration
-- `services/display/configs/display.yaml` - Gateway URL and display parameters
+- `services/ui/configs/ui.yaml` - Gateway URL and display parameters
 - `services/compositor/configs/compositor.yaml` - Compositor and display layout settings
 
 ---
