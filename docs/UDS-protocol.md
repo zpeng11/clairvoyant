@@ -4,50 +4,31 @@
 This file defines existing UDS protocols for local communication in the system.
 
 ## Usage Paths
-1. Stream Engine -> AI Inference. Supporting DMA-BUF transfer, use detection schema.
-2. AI Inference -> Stream Engine. Supporting DMA-BUF memory management, use detection schema.
-3. AI Inference -> Network Gateway. Use detection schema.
-4. Network Gateway -> Stream Engine. Sending streaming configs including plane dispaly layout, use stream config schema.
-5. Network Gateway -> AI Inference. Sending AI Inference configs, use inference config schema.
+1. AI Inference -> Network Gateway. Sending detection results, use detection schema.
+2. Network Gateway -> Stream Engine. Sending streaming configs including plane display layout, use stream config schema.
+3. Network Gateway -> AI Inference. Sending AI Inference configs, use inference config schema.
 
 ## Detection Schema
 
 ### Unified Message Structure
-See `shared/schema/detection-schema.json`, send and receive differentiated by the `direction` field.
+See `services/common/schema/detection-result-schema.json`. This schema is used for AI Inference → Network Gateway.
 
 #### Fields
-| Field | Type | Description | Applicable Direction |
-|-------|------|-------------|---------------------|
-| `direction` | string | `"send"` for Stream Engine → AI Inference, `"return"` for AI Inference → Stream Engine | both |
-| `stream_id` | string | RTSP stream identifier | both |
-| `sequence` | number | Frame sequence number | both |
-| `width` | number | Frame width in pixels | both |
-| `height` | number | Frame height in pixels | both |
-| `format` | string | Pixel format (e.g., `"NV12"`, `"YUV420P"`) | send |
-| `timestamp` | number | Frame timestamp in nanoseconds | send |
-| `inference_time` | number | AI inference duration in nanoseconds | return |
-| `status` | string | `"success"` or `"error"` | return |
-| `model_name` | string | Model name used for inference | return |
-| `timestamp` | number | Detection timestamp in nanoseconds | return |
-| `detections` | array | Detection results array | return (optional) |
+| Field | Type | Description |
+|-------|------|-------------|
+| `stream_id` | string | RTSP stream identifier |
+| `sequence` | number | Frame sequence number |
+| `width` | number | Frame width in pixels |
+| `height` | number | Frame height in pixels |
+| `inference_time` | number | AI inference duration in nanoseconds |
+| `status` | string | `"success"` or `"error"` |
+| `model_name` | string | Model name used for inference |
+| `timestamp` | number | Detection timestamp in nanoseconds |
+| `detections` | array | Detection results array (optional) |
 
-### Send Message Example (Stream Engine → AI Inference)
+### Detection Message Example (AI Inference -> Network Gateway)
 ```json
 {
-  "direction": "send",
-  "stream_id": "camera-001",
-  "sequence": 12345,
-  "width": 1920,
-  "height": 1080,
-  "format": "NV12",
-  "timestamp": 1737072000000000000
-}
-```
-
-### Return Message Example (AI Inference → Stream Engine/ Network Gateway)
-```json
-{
-  "direction": "return",
   "stream_id": "camera-001",
   "sequence": 12345,
   "width": 1920,

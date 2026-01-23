@@ -6,11 +6,11 @@
 Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms with hardware acceleration capabilities. It provides real-time video stream processing, AI-powered object detection, and flexible remote management through a microservices architecture.
 
 ### 1.2 Core Features
-- **Zero-Copy Architecture**: Utilizes DMA-BUF and shared memory for efficient data exchange between services without CPU intervention
+- **Zero-Copy Architecture**: Utilizes DMA-BUF, PipeWire, and Wayland linux-dmabuf for efficient data exchange between services without CPU intervention
 - **Hardware Acceleration**: Leverages platform-specific decoders (V4L2 Request API, VA-API) and NPUs (RKNPU, ACL, OpenVINO, TensorRT)
-- **Modular Design**: Four independent Docker containers enabling independent deployment, scaling, and maintenance
+- **Modular Design**: Five independent Docker containers enabling independent deployment, scaling, and maintenance
 - **Unified Management**: RESTful API and WebSocket for centralized stream and configuration management
-- **Hardware Compositing**: DRM/KMS atomic API for seamless video and UI layer composition
+- **Wayland Compositing**: Smithay-based Wayland compositor with linux-dmabuf protocol for seamless video and UI layer composition
 
 ---
 
@@ -34,68 +34,77 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
           ▼                    ▼              │              ▼
 ┌─────────────────┐   ┌─────────────────┐     │     ┌─────────────────┐     
 │   Remote UI     │   │    Display      │     │     │  Stream Engine  │               
-│   (Browser)     │   │ (Local Chromium)│     │     │   (GStreamer)   │───────────────┐ 
-└─────────────────┘   └─────────────────┘     │     └─────────────────┘               │
-                                │             │               │                       │
-                                │             │               │ DMA-BUF (Zero-Copy)   │
-                                │             │               ▼                       │
-                                │             │      ┌─────────────────┐              │
-                                │             └──────│  AI Inference   │              │
-                                │                    │ (ONNX Runtime)  │              │
-                                │                    └─────────────────┘              │
-                                │                                                     │
-                                └───────UI Plane────────┐                             │
-                                                        │                             │
-                                                        │── Video Planes──────────────┘ 
-                                                        ▼
-                                                    ┌─────────────────┐
-                                                    │   DRM/KMS       │
-                                                    │   Display       │
-                                                    └─────────────────┘
+│   (Browser)     │   │   (Chromium)    │     │     │   (GStreamer)   │
+└─────────────────┘   └─────────────────┘     │     └─────────────────┘
+                              │               │          │         │
+                              │ Wayland       │          │         │ PipeWire
+                              │ linux-dmabuf  │          │         │ (frames)
+                              │               │          │         ▼
+                              │               │          │  ┌─────────────────┐
+                              │               └──────────│──│  AI Inference   │
+                              │                          │  │ (ONNX Runtime)  │
+                              │                          │  └─────────────────┘
+                              │                          │  Wayland
+                              │                          │  linux-dmabuf
+                              ▼                          ▼
+                         ┌─────────────────────────────────────┐
+                         │            Compositor               │
+                         │            (Smithay)                │
+                         └─────────────────────────────────────┘
+                                          │
+                                          ▼
+                                   ┌─────────────────┐
+                                   │   DRM/KMS       │
+                                   │   Display       │
+                                   └─────────────────┘
 ```
 
 ### 2.2 Data Flow
 1. **RTSP Ingestion**: External camera streams → Gateway (MediaMTX) → Stream Engine/Remote UI
-2. **Video Decoding**: Stream Engine → Hardware Decoder (V4L2/VA-API) → DRM/KMS Video Planes
-3. **AI Processing**: Decoded frames (DMA-BUF) → AI Inference → Gateway 
+2. **Video Decoding**: Stream Engine → Hardware Decoder (V4L2/VA-API) → Wayland surface (linux-dmabuf) → Compositor
+3. **AI Processing**: Decoded frames → PipeWire (pipewiresink) → AI Inference (pipewire-rs) → Gateway
 4. **Detections Distribution**: Gateway (WebSocket) → Display/Remote UI
-5. **Display Composition**: DRM/KMS Controller merges Video Planes (Stream Engine) + UI Plane (Display)
+5. **UI Rendering**: Display (Chromium Ozone/Wayland) → Wayland surface (linux-dmabuf) → Compositor
+6. **Display Composition**: Compositor (Smithay) merges video surfaces + UI surfaces → DRM/KMS output
 
 ---
 
 ## 3. Service Details
 
 ### 3.1 Stream Engine
-**Role**: Data & Display Hub
+**Role**: Video Processing & Distribution Hub
 
 **Data Flow**:
-- Input: RTSP streams from Gateway's MediaMTX, UDS message of video DRM layout and config
-- Output: DRM/KMS video planes, DMA-BUF to AI, Recording persistance
+- Input: RTSP streams from Gateway's MediaMTX, UDS message of video layout and config
+- Output: Wayland surfaces (linux-dmabuf) to Compositor, PipeWire frames to AI Inference, Recording persistence
 
 **Technology Stack**:
 - Language: Rust
 - Framework: GStreamer with V4L2 Request API (ARM) / VA-API (x86)
-- Hardware: DRM/KMS Atomic API
-- IPC: UDS (Inference results, video layouts, configs), DMA-BUF (video frames)
+- Display: Wayland client (wayland-client, linux-dmabuf-v1 protocol)
+- AI IPC: PipeWire daemon with GStreamer pipewiresink
+- Config IPC: UDS (video layouts, configs from Gateway)
 
 **Key Interfaces**:
 - `services/stream-engine/src/rtsp/`: RTSP stream consumption logic
 - `services/stream-engine/src/decoder/`: Hardware decoder integration
-- `services/stream-engine/src/drm/`: DRM/KMS plane management
-- `services/stream-engine/src/ipc/dma_buf.rs`: DMA-BUF sharing with AI Inference
-- `services/stream-engine/src/ipc/uds_server.rs`: Getting video DRM layout
+- `services/stream-engine/src/wayland/client.rs`: Wayland client for Compositor connection
+- `services/stream-engine/src/wayland/dmabuf.rs`: linux-dmabuf surface submission
+- `services/stream-engine/src/ipc/pipewire_sink.rs`: PipeWire daemon and GStreamer pipewiresink for AI frames
+- `services/stream-engine/src/ipc/uds_client.rs`: Receiving video layout from Gateway
 - `services/stream-engine/src/storage/sqlite.rs`: SQLite database operations
 
 ### 3.2 AI Inference
 **Role**: Detections Generator
 
 **Data Flow**:
-- Input: DMA-BUF video frames from Stream Engine, config from Gateway
-- Output: Detections distribute to Gateway 
+- Input: Video frames from Stream Engine via PipeWire, config from Gateway
+- Output: Detections distributed to Gateway 
 
 **Technology Stack**:
 - Language: Rust
 - Framework: ONNX Runtime
+- Frame Input: Native PipeWire API (pipewire-rs)
 - Hardware Acceleration: Platform-specific Execution Providers
   - RKNPU (Rockchip NPU)
   - ACL (Huawei Ascend)
@@ -103,7 +112,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
   - TensorRT (NVIDIA)
 
 **Key Interfaces**:
-- `services/ai-inference/src/ipc/dma_buf.rs`: Receive DMA-BUF frames
+- `services/ai-inference/src/ipc/pipewire_source.rs`: Native PipeWire client for receiving frames
 - `services/ai-inference/src/inference/onnx_runtime.rs`: ONNX Runtime wrapper
 - `services/ai-inference/src/inference/ep/`: Execution Provider adapters
 - `services/ai-inference/src/ipc/uds_publisher.rs`: Publish JSON detections
@@ -114,19 +123,19 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 
 **Data Flow**:
 - Input: UI assets and backend from Gateway
-- Output: Chromium rendering on DRM/KMS UI Plane
+- Output: Wayland surface (linux-dmabuf) to Compositor
 
 **Technology Stack**:
 - Runtime: Chromium Kiosk Mode
-- Backend: Ozone/GBM (No X11/Wayland)
-- Rendering: Hardware-accelerated GPU compositing
+- Backend: Ozone/Wayland (connects to Compositor)
+- Rendering: Hardware-accelerated GPU compositing via linux-dmabuf
 - Communication: WebSocket (from Gateway), HTTP/HTTPS (UI assets)
 
 **Key Interfaces**:
 - `services/display/src/main.sh`: Chromium startup script
-- `services/display/src/browser/chromium.conf`: Chromium parameters (Ozone/GBM, transparent background)
+- `services/display/src/browser/chromium.conf`: Chromium parameters (Ozone/Wayland, transparent background)
 - `services/display/static/`: Local fallback assets when Gateway is unavailable
-- `services/display/configs/display.yaml`: Gateway URL, display parameters
+- `services/display/configs/display.yaml`: Gateway URL, Compositor socket, display parameters
 
 **Fallback Mechanism**:
 - If Gateway is unreachable, Display serves local static HTML from `services/display/static/`
@@ -152,6 +161,30 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 - `services/network-gateway/src/websocket/server.ts`: WebSocket server for AI detections
 - `services/network-gateway/src/static/`: Unified frontend assets (SPA)
 - `services/network-gateway/configs/gateway.yaml`: API configuration, MediaMTX settings
+
+### 3.5 Compositor
+**Role**: Wayland Display Compositor
+
+**Data Flow**:
+- Input: Wayland surfaces with linux-dmabuf from Stream Engine (video) and Display (UI)
+- Output: Composed frames to DRM/KMS display
+
+**Technology Stack**:
+- Language: Rust
+- Framework: Smithay (Wayland compositor library)
+- Protocols: wl_compositor, linux-dmabuf-v1, xdg-shell
+- Output: DRM/KMS Atomic API
+
+**Key Interfaces**:
+- `services/compositor/src/compositor/mod.rs`: Smithay compositor state and event loop
+- `services/compositor/src/dmabuf/handler.rs`: linux-dmabuf-v1 protocol handler
+- `services/compositor/src/drm/backend.rs`: DRM/KMS backend for display output
+- `services/compositor/src/shell/`: Surface management and layer ordering
+- `services/compositor/configs/compositor.yaml`: Display configuration, layer priorities
+
+**Layer Management**:
+- Video surfaces from Stream Engine are placed on lower z-order (background)
+- UI surfaces from Display are placed on higher z-order (foreground/overlay)
 
 ---
 
@@ -196,8 +229,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 ### 5.1 Project Root
 ```
 clairvoyant/
-├── services/              # Microservices (4 containers)
-├── shared/                # Cross-service resources (IPC protocols, configs)
+├── services/              # Microservices (5 containers)
 ├── data/                  # Data volumes (Docker mounts)
 ├── docs/                  # Documentation
 ├── scripts/               # Build and deployment scripts
@@ -207,15 +239,16 @@ clairvoyant/
 ### 5.2 Service Responsibilities
 | Service | Primary Responsibility | Key Directories |
 |:---|:---|:---|
-| **Stream Engine** | Video decoding, DRM/KMS output | `services/stream-engine/src/rtsp/`, `decoder/`, `drm/`, `storage/` |
-| **AI Inference** | Object detection | `services/ai-inference/src/inference/`, `models/` |
-| **Display** | UI rendering on Local Chromium | `services/display/src/`, `static/` |
+| **Stream Engine** | Video decoding, Wayland client, PipeWire producer | `services/stream-engine/src/rtsp/`, `decoder/`, `wayland/`, `storage/` |
+| **AI Inference** | Object detection via PipeWire frames | `services/ai-inference/src/inference/`, `ipc/`, `models/` |
+| **Display** | UI rendering via Wayland | `services/display/src/`, `static/` |
 | **Network Gateway** | RTSP proxy, REST API, WebSocket, full stack hosting | `services/network-gateway/src/api/`, `mediamtx/`, `websocket/`, `static/` |
+| **Compositor** | Wayland compositor, DRM/KMS output | `services/compositor/src/compositor/`, `dmabuf/`, `drm/` |
 
 ### 5.3 Shared Resources
-- `docs/`: IPC mechanism definitions and protocols (DMA-BUF, UDS, REST API)
-- `shared/schema/`: JSON schemas for IPC messages
-- `shared/configs/`: Common configuration templates (logging, environment)
+- `docs/`: IPC mechanism definitions and protocols (PipeWire, Wayland, UDS, REST API)
+- `services/common/schema/`: JSON schemas for IPC messages
+- `services/common/configs/`: Common configuration templates (logging, environment)
 
 ### 5.4 Data Volumes
 - `data/recordings/`: Video recording files
@@ -236,22 +269,28 @@ clairvoyant/
     - Starts REST API and WebSocket server
     - Starts UDS server for connecting Stream Engine
     - Starts UDS server for connecting AI Inference
-2. **Stream Engine** starts:
+2. **Compositor** starts second:
+    - Initializes DRM/KMS backend
+    - Creates Wayland socket for clients
+    - Waits for client connections (Stream Engine, Display)
+3. **Stream Engine** starts:
     - Connects to Gateway's UDS to receive video layout and configs
-    - Connects to Gateway's MediaMTX to connect RTSP streams
-    - Initializes DRM/KMS display planes
-    - Starts UDS server for connecting AI Inference
-3. **AI Inference** starts:
-    - Connects to Stream Engine's UDS to receive DMA-BUF sharing
+    - Connects to Gateway's MediaMTX to consume RTSP streams
+    - Connects to Compositor as Wayland client
+    - Starts PipeWire daemon for AI frame sharing
+4. **AI Inference** starts:
+    - Connects to Stream Engine's PipeWire to receive video frames
     - Connects to Gateway's UDS to receive configs and send AI detections
     - Loads ONNX model and initializes Execution Provider
-4. **Display** starts:
+5. **Display** starts:
     - Attempts to connect to Gateway for UI assets
-    - Launches Chromium in Kiosk mode (Ozone/GBM)
+    - Connects to Compositor as Wayland client
+    - Launches Chromium in Kiosk mode (Ozone/Wayland)
 
 ### 6.2 Exception Handling
 - **Gateway Unavailable**: Display serves local fallback UI from `services/display/static/`, remote unreachable 
-- **Stream Engine Unavailable/ DRM Failure**: Hardware decoding unavailable, Display Chromium fall back from hardware rendering to Remote UI
+- **Compositor Unavailable**: Stream Engine and Display cannot render locally, fall back to Remote UI only
+- **Stream Engine Unavailable/PipeWire Failure**: AI Inference cannot receive frames, Gateway notifies UI of detection unavailability
 - **AI Inference Unavailable/Failure**: Gateway notifies UI of detection unavailability
 - **Display Chromium Unavailable**: Gateway remote UI keep working
 - **RTSP Source Lost**: Gateway attempts reconnection and keep proxying a signal lost word display 

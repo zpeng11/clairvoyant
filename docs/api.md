@@ -70,29 +70,43 @@ Real-time AI detection metadata including bounding boxes, classes, confidence sc
 **Detailed Specification**: See `shared/protocols/websocket/schema.txt`
 
 ### 3.3 Client Integration
-- Display service establishes WebSocket connection on startup to receive AI metadata for UI overlay
-- Remote browsers can connect to the same endpoint for live detection visualization
+- Display service establishes WebSocket connection on startup to receive AI metadata for UI rendering
+- Remote browsers connect to the same endpoint for live detection visualization in the web interface
+- Detections are synchronized with the video stream via timestamps
 
 ---
 
 ## 4. IPC Protocol References
 
-### 4.1 DMA-BUF Protocol
-Defines the zero-copy frame sharing mechanism between Stream Engine and AI Inference. Extended to support detection results in return messages.
+### 4.1 PipeWire Protocol
+Defines the zero-copy frame sharing mechanism between Stream Engine and AI Inference using PipeWire.
 
 **Covers:**
-- DMA-BUF file descriptor sharing via Unix Domain Socket SOCK_SEQPACKET
-- Map FD to memory for next step
+- Stream Engine hosts PipeWire daemon and uses GStreamer `pipewiresink`
+- AI Inference connects as PipeWire client using `pipewire-rs` (native API)
+- Zero-copy DMA-BUF frames negotiated and shared via PipeWire streams
 
-**Detailed Specification**: See `dma-buf-protocol.md`
-**Data Structure**: See `shared/schema/detection-schema.json`'s sending schema
+**Detailed Specification**: See `pipewire-protocol.md`
+**Data Structure**: See `services/common/schema/frame-metadata-schema.json`
 
-### 4.2 UDS messages
-Defines the Unix Domain Socket mechanism for services to communicate
+### 4.2 UDS Messages
+Defines the Unix Domain Socket mechanism for service coordination and metadata exchange.
 
 **Covers:**
-- Using SOCK_SEQPACKET to avoid framing problem
-- 1:1 connection dual directional model (Gateway to AI Inference, Gateway to Stream Engine, AI Inference to Stream Engine)
+- Using `SOCK_SEQPACKET` for reliable, message-oriented communication
+- 1:1 bidirectional connections:
+  - Network Gateway ↔ Stream Engine (Video layout, stream configs)
+  - Network Gateway ↔ AI Inference (AI configs, detection results)
 
 **Detailed Specification**: See `UDS-protocol.md`
+
+### 4.3 Wayland linux-dmabuf Protocol
+Defines the zero-copy buffer sharing mechanism between Wayland clients and the Compositor.
+
+**Covers:**
+- Stream Engine (client) submits video surfaces via `linux-dmabuf-v1`
+- Display (client) submits UI surfaces via `linux-dmabuf-v1`
+- Compositor (server) receives and composites surfaces for DRM/KMS output
+
+**Detailed Specification**: See `wayland-dmabuf-protocol.md`
 

@@ -41,12 +41,11 @@ Send authentication message as the first message after connection established:
 ## Message Format
 
 ### Detection Message Structure
-Gateway pushes detection messages with the same schema as DMA-BUF return messages. See `shared/schema/detection-schema.json` for complete JSON Schema definition.
+Gateway pushes detection messages following the AI Detection Result Schema. See `services/common/schema/detection-result-schema.json` for complete JSON Schema definition.
 
-#### Required Fields (return direction)
+#### Required Fields
 | Field | Type | Description |
 |-------|------|-------------|
-| `direction` | string | Must be `"return"` |
 | `stream_id` | string | RTSP stream identifier |
 | `sequence` | number | Frame sequence number |
 | `width` | number | Frame width in pixels |
@@ -68,7 +67,6 @@ Gateway pushes detection messages with the same schema as DMA-BUF return message
 ### Example Message
 ```json
 {
-  "direction": "return",
   "stream_id": "camera-001",
   "sequence": 12345,
   "width": 1920,

@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PipeWire Frame Metadata Schema",
+  "description": "Video frame metadata for PipeWire zero-copy sharing (Stream Engine → AI Inference)",
+  "type": "object",
+  "required": ["stream_id", "width", "height", "format", "timestamp"],
+  "properties": {
+    "stream_id": {
+      "type": "string",
+      "description": "Source stream identifier"
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Frame width in pixels"
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Frame height in pixels"
+    },
+    "format": {
+      "type": "string",
+      "description": "Pixel format FourCC (NV12, YUV420P)"
+    },
+    "timestamp": {
+      "type": "integer",
+      "description": "Presentation timestamp in nanoseconds"
+    }
+  }
+}
