@@ -10,7 +10,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 - **Hardware Acceleration**: Leverages platform-specific decoders (V4L2 Request API, VA-API) and NPUs (RKNPU, ACL, OpenVINO, TensorRT)
 - **Modular Design**: Five independent Docker containers enabling independent deployment, scaling, and maintenance
 - **Unified Management**: RESTful API and WebSocket for centralized stream and configuration management
-- **Wayland Compositing**: Smithay-based Wayland compositor with linux-dmabuf protocol for seamless video and UI layer composition
+- **Wayland Compositing**: wlroots-based Wayland compositor with linux-dmabuf protocol for seamless video and UI layer composition
 
 ---
 
@@ -49,7 +49,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
                               ▼                          ▼
                          ┌─────────────────────────────────────┐
                          │            Compositor               │
-                         │            (Smithay)                │
+                         │            (wlroots)                │
                          └─────────────────────────────────────┘
                                           │
                                           ▼
@@ -65,7 +65,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 3. **AI Processing**: Decoded frames → PipeWire (pipewiresink) → AI Inference (pipewire-rs) → Gateway
 4. **Detections Distribution**: Gateway (WebSocket) → UI/Remote UI
 5. **UI Rendering**: UI (Chromium Ozone/Wayland) → Wayland surface (linux-dmabuf) → Compositor
-6. **Display Composition**: Compositor (Smithay) merges video surfaces + UI surfaces → DRM/KMS output
+6. **Display Composition**: Compositor (wlroots) merges video surfaces + UI surfaces → DRM/KMS output
 
 ---
 
@@ -171,12 +171,12 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 
 **Technology Stack**:
 - Language: Rust
-- Framework: Smithay (Wayland compositor library)
+- Framework: wlroots (Wayland compositor library via Rust FFI)
 - Protocols: wl_compositor, linux-dmabuf-v1, xdg-shell
 - Output: DRM/KMS Atomic API
 
 **Key Interfaces**:
-- `services/compositor/src/compositor/mod.rs`: Smithay compositor state and event loop
+- `services/compositor/src/compositor/mod.rs`: wlroots compositor state and event loop
 - `services/compositor/src/dmabuf/handler.rs`: linux-dmabuf-v1 protocol handler
 - `services/compositor/src/drm/backend.rs`: DRM/KMS backend for display output
 - `services/compositor/src/shell/`: Surface management and layer ordering

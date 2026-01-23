@@ -4,7 +4,7 @@
 Defines zero-copy buffer sharing between Wayland clients and the Compositor via the `linux-dmabuf-v1` protocol extension.
 
 ## 2. Architecture
-- **Server**: Compositor (Smithay) manages DRM/KMS output
+- **Server**: Compositor (wlroots) manages DRM/KMS output
 - **Clients**: Stream Engine (video), UI
 - **Protocol**: `zwp_linux_dmabuf_v1` for buffer import
 

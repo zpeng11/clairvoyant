@@ -12,7 +12,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 - **Hardware Acceleration**: Platform-specific decoders (V4L2 Request API, VA-API) and NPUs (RKNPU, ACL, OpenVINO, TensorRT)
 - **Modular Design**: Five independent Docker containers enabling independent deployment, scaling, and maintenance
 - **Unified Management**: RESTful API and WebSocket for centralized stream and configuration management
-- **Wayland Compositing**: Smithay-based Wayland compositor with linux-dmabuf protocol for seamless video and UI layer composition
+- **Wayland Compositing**: wlroots-based Wayland compositor with linux-dmabuf protocol for seamless video and UI layer composition
 
 ---
 
@@ -23,7 +23,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
 - **Producer (Stream Engine)**: Decodes RTSP to DMA-BUF; exports frames via PipeWire for AI and Wayland for display
 - **Consumer (AI Inference)**: Receives zero-copy frames via PipeWire for NPU processing
 - **UI Overlay (Chromium)**: Renders transparent UI via Wayland; submits surfaces to the compositor
-- **Compositor (Smithay)**: Performs zero-copy composition of video and UI layers via linux-dmabuf; outputs to DRM/KMS
+- **Compositor (wlroots)**: Performs zero-copy composition of video and UI layers via linux-dmabuf; outputs to DRM/KMS
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -57,7 +57,7 @@ Clairvoyant is a modular edge-AI surveillance system designed for SoC platforms 
                               ▼                          ▼
                          ┌─────────────────────────────────────┐
                          │            Compositor               │
-                         │            (Smithay)                │
+                         │            (wlroots)                │
                          └─────────────────────────────────────┘
                                           │
                                           ▼
@@ -79,7 +79,7 @@ For detailed architecture documentation, see [docs/architecture.md](docs/archite
 | **AI Inference** | Detections Generator | Rust / ONNX Runtime | PipeWire input, UDS output |
 | **UI** | Transparent UI Layer | Chromium (Ozone/Wayland) | WebSocket, HTTP, Wayland |
 | **Network Gateway** | Remote & API Bridge | Node.js TS / MediaMTX | REST, WebSocket, UDS |
-| **Compositor** | Wayland Display Server | Rust / Smithay | Wayland, DRM/KMS |
+| **Compositor** | Wayland Display Server | Rust / wlroots (FFI) | Wayland, DRM/KMS |
 
 ### Zero-Copy Data Path
 
